@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/your-org/devops-assignment-main.git
+    repoURL: https://github.com/PhyoeThuta/devops-assignment.git
     targetRevision: main
     path: kustomize/overlays/prod
   destination:
