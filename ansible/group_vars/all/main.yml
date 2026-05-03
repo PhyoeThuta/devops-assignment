@@ -1,0 +1,10 @@
+nginx_container_name: nginx-web
+nginx_image: nginx:1.27-alpine
+nginx_port: 8081
+nginx_html_path: /usr/share/nginx/html/index.html
+
+node_exporter_user: nodeexp
+node_exporter_group: nodeexp
+node_exporter_version: "1.8.2"
+node_exporter_port: 9100
+node_exporter_install_dir: /opt/node_exporter

@@ -1,0 +1,23 @@
+tempo:
+  metricsGenerator:
+    enabled: true
+  retention: 24h
+
+traces:
+  otlp:
+    http:
+      enabled: true
+    grpc:
+      enabled: true
+
+ingester:
+  replicas: 1
+
+compactor:
+  replicas: 1
+
+querier:
+  replicas: 1
+
+gateway:
+  enabled: true

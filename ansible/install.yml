@@ -1,0 +1,140 @@
+---
+- name: Configure Linux host
+  hosts: web
+  become: true
+  vars:
+    docker_packages:
+      - docker.io
+      - python3-pip
+
+  tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: "{{ docker_packages }}"
+        state: present
+
+    - name: Ensure Docker daemon config directory exists
+      ansible.builtin.file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Configure Docker log rotation
+      ansible.builtin.copy:
+        src: files/docker-daemon.json
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      notify: Restart Docker
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create NGINX container HTML directory
+      ansible.builtin.file:
+        path: /opt/nginx-html
+        state: directory
+        mode: '0755'
+
+    - name: Render custom HTML page
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: /opt/nginx-html/index.html
+        mode: '0644'
+
+    - name: Run NGINX container
+      community.docker.docker_container:
+        name: "{{ nginx_container_name }}"
+        image: "{{ nginx_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "{{ nginx_port }}:80"
+        volumes:
+          - /opt/nginx-html/index.html:{{ nginx_html_path }}:ro
+
+    - name: Create node exporter user
+      ansible.builtin.user:
+        name: "{{ node_exporter_user }}"
+        group: "{{ node_exporter_group }}"
+        shell: /usr/sbin/nologin
+        system: true
+        create_home: false
+
+    - name: Create node exporter group
+      ansible.builtin.group:
+        name: "{{ node_exporter_group }}"
+        system: true
+
+    - name: Create node exporter install directory
+      ansible.builtin.file:
+        path: "{{ node_exporter_install_dir }}"
+        state: directory
+        owner: "{{ node_exporter_user }}"
+        group: "{{ node_exporter_group }}"
+        mode: '0755'
+
+    - name: Download node exporter archive
+      ansible.builtin.get_url:
+        url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+        dest: /tmp/node_exporter.tar.gz
+        mode: '0644'
+
+    - name: Extract node exporter archive
+      ansible.builtin.unarchive:
+        src: /tmp/node_exporter.tar.gz
+        dest: /tmp
+        remote_src: true
+
+    - name: Copy node exporter binary
+      ansible.builtin.copy:
+        src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+        dest: "{{ node_exporter_install_dir }}/node_exporter"
+        remote_src: true
+        owner: "{{ node_exporter_user }}"
+        group: "{{ node_exporter_group }}"
+        mode: '0755'
+
+    - name: Install node exporter systemd unit
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/node_exporter.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Node Exporter
+          After=network.target
+
+          [Service]
+          User={{ node_exporter_user }}
+          Group={{ node_exporter_group }}
+          Type=simple
+          ExecStart={{ node_exporter_install_dir }}/node_exporter --web.listen-address=:{{ node_exporter_port }}
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+      notify: Reload systemd
+
+    - name: Enable and start node exporter
+      ansible.builtin.systemd:
+        name: node_exporter
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: Restart Docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
