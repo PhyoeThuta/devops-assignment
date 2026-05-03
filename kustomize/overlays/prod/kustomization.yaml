@@ -4,12 +4,12 @@ kind: Kustomization
 namespace: hello-api
 
 resources:
-  - ../../base
+- ../../base
 
 images:
-  - name: hello-api
-    newName: phyoethuta/hello-api
-    newTag: 1.0.0
+- name: hello-api
+  newName: phyoethuta/hello-api
+  newTag: "20260503012656"
 
 patches:
-  - path: patch-deployment.yaml
+- path: patch-deployment.yaml
