@@ -9,7 +9,7 @@ resources:
 images:
 - name: hello-api
   newName: phyoethuta/hello-api
-  newTag: "20260503012656"
+  newTag: "20260504021256"
 
 patches:
 - path: patch-deployment.yaml
